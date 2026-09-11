@@ -68,13 +68,13 @@ namespace Puzzle
             return count;
         }
         
-        public int IndexOfNthEmpty(int ordinal)
+        public int IndexOfNthEmpty(int number)
         {
             for (var i = 0; i < _cells.Length; i++)
             {
                 if (_cells[i] != 0) continue;
-                if (ordinal == 0) return i;
-                ordinal--;
+                if (number == 0) return i;
+                number--;
             }
 
             return -1;

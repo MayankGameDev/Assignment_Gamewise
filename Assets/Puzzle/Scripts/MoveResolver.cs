@@ -12,22 +12,26 @@ namespace Puzzle
             _result = new int[maxLineLength];
         }
         
-        public bool Move(Board board, Direction direction)
+        public bool Move(Board board, Direction direction, out int scoreGained)
         {
             var vertical = direction == Direction.Up || direction == Direction.Down;
             var lineCount = vertical ? board.Width : board.Height;
             var lineLength = vertical ? board.Height : board.Width;
 
             var changed = false;
+            scoreGained = 0;
+
             for (var line = 0; line < lineCount; line++)
             {
-                if (ResolveLine(board, direction, line, lineLength)) changed = true;
+                if (ResolveLine(board, direction, line, lineLength, out var lineScore)) changed = true;
+                scoreGained += lineScore;
             }
 
             return changed;
         }
 
-        private bool ResolveLine(Board board, Direction direction, int line, int length)
+        private bool ResolveLine(
+            Board board, Direction direction, int line, int length, out int score)
         {
             for (var p = 0; p < length; p++)
             {
@@ -36,7 +40,7 @@ namespace Puzzle
                 _result[p] = 0;
             }
 
-            Collapse(length);
+            Collapse(length, out score);
 
             var changed = false;
             for (var p = 0; p < length; p++)
@@ -51,10 +55,10 @@ namespace Puzzle
             return changed;
         }
         
-        private void Collapse(int length)
+        private void Collapse(int length, out int score)
         {
+            score = 0;
             var write = 0;
-            
             var open = -1;
 
             for (var read = 0; read < length; read++)
@@ -64,7 +68,9 @@ namespace Puzzle
 
                 if (open >= 0 && _result[open] == value)
                 {
-                    _result[open] = value * 2;
+                    var merged = value * 2;
+                    _result[open] = merged;
+                    score += merged;
                     open = -1;
                     continue;
                 }
@@ -74,6 +80,7 @@ namespace Puzzle
                 write++;
             }
         }
+
         
         private static void CoordFor(
             Board board, Direction direction, int line, int position, out int x, out int y)

@@ -1,10 +1,18 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Puzzle
 {
     public class MoveHistory
     {
-        private readonly List<int[]> _snapshots = new List<int[]>();
+        private class Snapshot
+        {
+            public int[] Cells;
+            public int Score;
+            public Random.State RandomState;
+        }
+        
+        private readonly List<Snapshot> _snapshots = new List<Snapshot>();
         private readonly int _capacity;
 
         public MoveHistory(int capacity = 20)
@@ -17,39 +25,44 @@ namespace Puzzle
         public bool CanUndo => _snapshots.Count > 0;
 
 
-        public void Push(Board board)
+        public void Push(Board board, int score, Random.State randomState)
         {
-            var snapshot = new int[board.CellCount];
-            for (var i = 0; i < snapshot.Length; i++)
+            var cells = new int[board.CellCount];
+            for (var i = 0; i < cells.Length; i++)
             {
-                snapshot[i] = board.CellAt(i);
+                cells[i] = board.CellAt(i);
             }
-
-            _snapshots.Add(snapshot);
-
+            _snapshots.Add(new Snapshot { Cells = cells, Score = score, RandomState = randomState });
             if (_snapshots.Count > _capacity)
             {
                 _snapshots.RemoveAt(0);
             }
         }
 
-        public bool TryPop(Board board)
+        public bool TryPop(Board board, out int score, out Random.State randomState)
         {
+            score = 0;
+            randomState = default;
+
             if (_snapshots.Count == 0) return false;
 
             var last = _snapshots.Count - 1;
             var snapshot = _snapshots[last];
 
-            if (snapshot.Length != board.CellCount)
+            if (snapshot.Cells.Length != board.CellCount)
             {
+                // Board was resized under us - the history is meaningless now.
                 Clear();
                 return false;
             }
 
-            for (var i = 0; i < snapshot.Length; i++)
+            for (var i = 0; i < snapshot.Cells.Length; i++)
             {
-                board.SetAt(i, snapshot[i]);
+                board.SetAt(i, snapshot.Cells[i]);
             }
+
+            score = snapshot.Score;
+            randomState = snapshot.RandomState;
 
             _snapshots.RemoveAt(last);
             return true;

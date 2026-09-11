@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,8 +12,7 @@ namespace Puzzle
         [SerializeField] private int _width = 4;
         [SerializeField] private int _height = 4;
 
-        [SerializeField]
-        private int _startingTiles = 2;
+        [SerializeField] private int _startingTiles = 2;
 
         [Tooltip("Chance a new tile is a 4 rather than a 2.")] [Range(0, 100)] [SerializeField]
         private int _fourChance = 10;
@@ -25,15 +25,18 @@ namespace Puzzle
         private MoveHistory _history;
 
         public Board Board => _board;
-        
+
         [SerializeField] private int _undoLimit = 20;
         [SerializeField] private Button _undoButton;
         public bool CanUndo => _history != null && _history.CanUndo;
 
+        [SerializeField] private TextMeshProUGUI _scoreLabel;
+        public int Score { get; private set; }
+
         private void Awake()
         {
             _board = new Board(_width, _height);
-            _spawner = new TileSpawner(NewRandom(), _fourChance);
+            _spawner = new TileSpawner(_fourChance);
             _resolver = new MoveResolver(Mathf.Max(_width, _height));
             _history = new MoveHistory(_undoLimit);
 
@@ -65,16 +68,24 @@ namespace Puzzle
             _spawner.SpawnMany(_board, _startingTiles);
             _boardView.Render();
             RefreshUndoButton();
+            Score = 0;
         }
 
         private void OnSwiped(Direction direction)
         {
-            _history.Push(_board);
-            if (!_resolver.Move(_board, direction)) return;
+            _history.Push(_board, Score, Random.state);
+
+            if (!_resolver.Move(_board, direction, out var gained))
+            {
+                _history.Discard();
+                return;
+            }
+
+            Score += gained;
 
             _spawner.TrySpawn(_board, out _, out _);
             _boardView.Render();
-            RefreshUndoButton();
+            RefreshUi();
         }
 
 
@@ -82,23 +93,37 @@ namespace Puzzle
         {
             return _seed == 0 ? new System.Random() : new System.Random(_seed);
         }
-        
+
         public bool Undo()
         {
-            if (!_history.TryPop(_board)) return false;
+            if (!_history.TryPop(_board, out var score, out var randomState))
+            {
+                RefreshUi();
+                return false;
+            }
+
+            Score = score;
+            Random.state = randomState;
 
             _boardView.Render();
+            RefreshUi();
             return true;
         }
-        
+
         private void OnUndoClicked()
         {
             Undo();
         }
-        
+
         private void RefreshUndoButton()
         {
             if (_undoButton != null) _undoButton.interactable = CanUndo;
+        }
+
+        private void RefreshUi()
+        {
+            if (_undoButton != null) _undoButton.interactable = CanUndo;
+            if (_scoreLabel != null) _scoreLabel.text = Score.ToString("N0");
         }
     }
 }
