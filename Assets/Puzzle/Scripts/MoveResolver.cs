@@ -80,7 +80,6 @@ namespace Puzzle
                 write++;
             }
         }
-
         
         private static void CoordFor(
             Board board, Direction direction, int line, int position, out int x, out int y)
@@ -107,6 +106,24 @@ namespace Puzzle
                     y = line;
                     break;
             }
+        }
+        
+        public static bool HasAnyMove(Board board)
+        {
+            if (board.CountEmpty() > 0) return true;
+
+            for (var y = 0; y < board.Height; y++)
+            {
+                for (var x = 0; x < board.Width; x++)
+                {
+                    var value = board[x, y];
+
+                    if (x + 1 < board.Width && board[x + 1, y] == value) return true;
+                    if (y + 1 < board.Height && board[x, y + 1] == value) return true;
+                }
+            }
+
+            return false;
         }
     }
 }

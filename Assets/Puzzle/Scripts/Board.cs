@@ -79,6 +79,17 @@ namespace Puzzle
 
             return -1;
         }
+        
+        public int HighestValue()
+        {
+            var highest = 0;
+            for (var i = 0; i < _cells.Length; i++)
+            {
+                if (_cells[i] > highest) highest = _cells[i];
+            }
+
+            return highest;
+        }
 
         public void Clear()
         {

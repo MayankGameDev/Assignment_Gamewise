@@ -8,6 +8,9 @@ namespace Puzzle
     {
         [SerializeField] private BoardView _boardView;
         [SerializeField] private SwipeDetector _input;
+        [SerializeField] private GameOverPanel _gameOverPanel;
+        [SerializeField] private TextMeshProUGUI _scoreLabel;
+        [SerializeField] private Button _undoButton;
 
         [SerializeField] private int _width = 4;
         [SerializeField] private int _height = 4;
@@ -18,20 +21,23 @@ namespace Puzzle
         private int _fourChance = 10;
 
         [SerializeField] private int _seed;
+        
+        [Tooltip("Reach this tile to win.")]
+        [SerializeField] private int _winValue = 2048;
 
         private Board _board;
         private TileSpawner _spawner;
         private MoveResolver _resolver;
         private MoveHistory _history;
+        private bool _targetReached;
 
         public Board Board => _board;
 
         [SerializeField] private int _undoLimit = 20;
-        [SerializeField] private Button _undoButton;
-        public bool CanUndo => _history != null && _history.CanUndo;
 
-        [SerializeField] private TextMeshProUGUI _scoreLabel;
         public int Score { get; private set; }
+        public bool CanUndo => _history != null && _history.CanUndo;
+        public GameState State { get; private set; }
 
         private void Awake()
         {
@@ -47,6 +53,11 @@ namespace Puzzle
         {
             if (_input != null) _input.Swiped += OnSwiped;
             if (_undoButton != null) _undoButton.onClick.AddListener(OnUndoClicked);
+            if (_gameOverPanel != null)
+            {
+                _gameOverPanel.NewGamePressed += NewGame;
+                _gameOverPanel.SecondaryPressed += OnSecondaryPressed;
+            }
         }
 
         private void OnDisable()
@@ -69,6 +80,9 @@ namespace Puzzle
             _boardView.Render();
             RefreshUndoButton();
             Score = 0;
+            State = GameState.Playing;
+            _targetReached = false;
+            if (_gameOverPanel != null) _gameOverPanel.Hide();
         }
 
         private void OnSwiped(Direction direction)
@@ -86,8 +100,51 @@ namespace Puzzle
             _spawner.TrySpawn(_board, out _, out _);
             _boardView.Render();
             RefreshUi();
+            CheckEndOfGame();
         }
+        
+        private void CheckEndOfGame()
+        {
+            if (!_targetReached && _board.HighestValue() >= _winValue)
+            {
+                _targetReached = true;
+                State = GameState.Won;
 
+                if (_gameOverPanel != null)
+                {
+                    _gameOverPanel.Show(
+                        "You win!",
+                        $"You reached {_winValue:N0} with {Score:N0} points.",
+                        "Keep going");
+                }
+
+                return;
+            }
+
+            if (MoveResolver.HasAnyMove(_board)) return; 
+            Debug.Log("Game Lost before 2048");
+            State = GameState.Lost;
+
+            if (_gameOverPanel != null)
+            {
+                _gameOverPanel.Show(
+                    "Game over",
+                    $"No moves left. Final score {Score:N0}.",
+                    CanUndo ? "Undo last move" : null);
+            }
+        }
+        
+        private void OnSecondaryPressed()
+        {
+            if (State == GameState.Won)
+            {
+                State = GameState.Playing;
+                if (_gameOverPanel != null) _gameOverPanel.Hide();
+                return;
+            }
+
+            Undo();
+        }
 
         private System.Random NewRandom()
         {
@@ -125,5 +182,7 @@ namespace Puzzle
             if (_undoButton != null) _undoButton.interactable = CanUndo;
             if (_scoreLabel != null) _scoreLabel.text = Score.ToString("N0");
         }
+        
+        
     }
 }
