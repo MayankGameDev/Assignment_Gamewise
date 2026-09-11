@@ -10,9 +10,11 @@ namespace Puzzle
     {
         [SerializeField] private float _spacing = 12f;
         [SerializeField] private Color _cellColor = new Color(0.80f, 0.76f, 0.71f);
-        
+
         [SerializeField] private float _moveDuration = 0.12f;
         [SerializeField] private float _popDuration = 0.12f;
+
+        [SerializeField] private Color _wallColor = new Color(0.35f, 0.33f, 0.31f);
 
         private Coroutine _animRoutine;
         public bool IsAnimating => _animRoutine != null;
@@ -97,7 +99,7 @@ namespace Puzzle
                 ShowTile(i, _board.CellAt(i));
             }
         }
-        
+
         public void AnimateMoves(List<TileMove> moves, Action onComplete)
         {
             if (_animRoutine != null) StopCoroutine(_animRoutine);
@@ -106,7 +108,9 @@ namespace Puzzle
 
         private IEnumerator AnimateMovesRoutine(List<TileMove> moves, Action onComplete)
         {
+            
             var newTiles = new TileView[_board.CellCount];
+            Array.Copy(_tiles, newTiles, _tiles.Length);
 
             foreach (var move in moves)
             {
@@ -116,12 +120,11 @@ namespace Puzzle
                 var tile = _tiles[fromIndex];
                 if (tile == null) continue;
 
-                _tiles[fromIndex] = null;
+                newTiles[fromIndex] = null;
                 var targetPos = PositionFor(toIndex);
 
                 if (move.Merged)
                 {
-                    // This tile slides into another one and is absorbed by it.
                     StartCoroutine(SlideTile(tile, targetPos, _moveDuration, () =>
                     {
                         DestroyObject(tile.gameObject);
@@ -192,7 +195,7 @@ namespace Puzzle
             if (index < 0 || _board == null) return;
 
             var value = _board.CellAt(index);
-            if (value == 0) return;
+            if (value <= 0) return; 
 
             _board.CoordAt(index, out var x, out var y);
             var tile = TileView.Create(_tileRoot, $"Tile {x},{y}");
@@ -221,6 +224,18 @@ namespace Puzzle
 
         private void ShowTile(int index, int value)
         {
+            if (value == Board.Wall)
+            {
+                if (_tiles[index] == null)
+                {
+                    _board.CoordAt(index, out var x, out var y);
+                    _tiles[index] = TileView.CreateWall(_tileRoot, $"Wall {x},{y}", _wallColor);
+                }
+
+                _tiles[index].SetGeometry(PositionFor(index), Vector2.one * _cellSize);
+                return;
+            }
+
             if (value == 0)
             {
                 if (_tiles[index] == null) return;

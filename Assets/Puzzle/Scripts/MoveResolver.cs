@@ -41,14 +41,34 @@ namespace Puzzle
         private bool ResolveLine(
             Board board, Direction direction, int line, int length, out int score, List<TileMove> moves)
         {
+            score = 0;
+
             for (var p = 0; p < length; p++)
             {
                 CoordFor(board, direction, line, p, out var x, out var y);
                 _line[p] = board[x, y];
-                _result[p] = 0;
+                _result[p] = _line[p] == Board.Wall ? Board.Wall : 0;
+                _moveTarget[p] = -1;
+                _merged[p] = false;
             }
+            
+            var segStart = 0;
+            while (segStart < length)
+            {
+                if (_line[segStart] == Board.Wall)
+                {
+                    segStart++;
+                    continue;
+                }
 
-            Collapse(length, out score);
+                var segEnd = segStart;
+                while (segEnd < length && _line[segEnd] != Board.Wall) segEnd++;
+
+                CollapseSegment(segStart, segEnd, out var segScore);
+                score += segScore;
+
+                segStart = segEnd;
+            }
 
             var changed = false;
             for (var p = 0; p < length; p++)
@@ -60,7 +80,7 @@ namespace Puzzle
             {
                 for (var p = 0; p < length; p++)
                 {
-                    if (_line[p] == 0) continue;
+                    if (_line[p] == 0 || _line[p] == Board.Wall) continue;
 
                     var targetPos = _moveTarget[p];
                     CoordFor(board, direction, line, p, out var fromX, out var fromY);
@@ -88,13 +108,13 @@ namespace Puzzle
             return changed;
         }
         
-        private void Collapse(int length, out int score)
+        private void CollapseSegment(int start, int end, out int score)
         {
             score = 0;
-            var write = 0;
+            var write = start;
             var open = -1;
 
-            for (var read = 0; read < length; read++)
+            for (var read = start; read < end; read++)
             {
                 var value = _line[read];
                 if (value == 0)
@@ -159,6 +179,7 @@ namespace Puzzle
                 for (var x = 0; x < board.Width; x++)
                 {
                     var value = board[x, y];
+                    if (value <= 0) continue; // empty or wall - can't be the mover in a merge
 
                     if (x + 1 < board.Width && board[x + 1, y] == value) return true;
                     if (y + 1 < board.Height && board[x, y + 1] == value) return true;

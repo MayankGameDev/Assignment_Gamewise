@@ -3,6 +3,8 @@ namespace Puzzle
     
     public class Board
     {
+        public const int Wall = -1;
+
         private readonly int[] _cells;
 
         public Board(int width, int height)
@@ -56,6 +58,8 @@ namespace Puzzle
         public void SetAt(int index, int value) => _cells[index] = value;
 
         public bool IsEmpty(int x, int y) => this[x, y] == 0;
+
+        public bool IsWall(int x, int y) => this[x, y] == Wall;
 
         public int CountEmpty()
         {

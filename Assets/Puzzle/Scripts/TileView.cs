@@ -52,12 +52,35 @@ namespace Puzzle
 
             return view;
         }
+        
+        
+        public static TileView CreateWall(Transform parent, string name, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            go.transform.SetParent(parent, false);
+
+            var view = go.AddComponent<TileView>();
+            view._rect = (RectTransform)go.transform;
+            view._background = go.GetComponent<Image>();
+            view._background.color = color;
+            view._background.raycastTarget = false;
+
+            view._rect.anchorMin = Vector2.zero;
+            view._rect.anchorMax = Vector2.zero;
+            view._rect.pivot = new Vector2(0.5f, 0.5f);
+
+            return view;
+        }
 
         public void SetValue(int value, Color background, Color textColor)
         {
             _background.color = background;
-            _label.text = value.ToString();
-            _label.color = textColor;
+
+            if (_label != null)
+            {
+                _label.text = value.ToString();
+                _label.color = textColor;
+            }
         }
 
         public void SetGeometry(Vector2 anchoredPosition, Vector2 size)
@@ -65,7 +88,7 @@ namespace Puzzle
             _rect.sizeDelta = size;
             _rect.anchoredPosition = anchoredPosition;
         }
-        
+
         public void SetSize(Vector2 size)
         {
             _rect.sizeDelta = size;

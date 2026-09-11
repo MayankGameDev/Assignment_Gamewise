@@ -22,19 +22,22 @@ namespace Puzzle
         private int _fourChance = 10;
 
         [SerializeField] private int _seed;
+        
+        [Tooltip("Reach this tile to win.")]
+        [SerializeField] private int _winValue = 2048;
 
-        [Tooltip("Reach this tile to win.")] [SerializeField]
-        private int _winValue = 2048;
+        [Tooltip("Number of blocked cells placed on the board at the start of each game.")]
+        [SerializeField] private int _wallCount = 2;
 
         private Board _board;
         private TileSpawner _spawner;
         private MoveResolver _resolver;
         private MoveHistory _history;
         private bool _targetReached;
-
-        public Board Board => _board;
         private bool _animating;
         private readonly List<TileMove> _moves = new List<TileMove>();
+
+        public Board Board => _board;
 
         [SerializeField] private int _undoLimit = 20;
 
@@ -79,6 +82,7 @@ namespace Puzzle
         {
             _board.Clear();
             _history.Clear();
+            PlaceWalls();
             _spawner.SpawnMany(_board, _startingTiles);
             _boardView.Render();
             RefreshUndoButton();
@@ -88,10 +92,31 @@ namespace Puzzle
             if (_gameOverPanel != null) _gameOverPanel.Hide();
         }
 
+        private void PlaceWalls()
+        {
+            var maxWalls = Mathf.Max(0, _board.CellCount - _startingTiles - 1);
+            var count = Mathf.Clamp(_wallCount, 0, maxWalls);
+
+            var placed = 0;
+            var guard = 0;
+
+            while (placed < count && guard < 1000)
+            {
+                guard++;
+
+                var index = Random.Range(0, _board.CellCount);
+                _board.CoordAt(index, out var x, out var y);
+
+                if (!_board.IsEmpty(x, y)) continue; 
+
+                _board[x, y] = Board.Wall;
+                placed++;
+            }
+        }
+
         private void OnSwiped(Direction direction)
         {
             if (_animating) return;
-
 
             _history.Push(_board, Score, Random.state);
 
@@ -114,7 +139,7 @@ namespace Puzzle
                 _animating = false;
             });
         }
-
+        
         private void CheckEndOfGame()
         {
             if (!_targetReached && _board.HighestValue() >= _winValue)
@@ -133,7 +158,7 @@ namespace Puzzle
                 return;
             }
 
-            if (MoveResolver.HasAnyMove(_board)) return;
+            if (MoveResolver.HasAnyMove(_board)) return; 
             Debug.Log("Game Lost before 2048");
             State = GameState.Lost;
 
@@ -145,7 +170,7 @@ namespace Puzzle
                     CanUndo ? "Undo last move" : null);
             }
         }
-
+        
         private void OnSecondaryPressed()
         {
             if (State == GameState.Won)
@@ -166,6 +191,7 @@ namespace Puzzle
         public bool Undo()
         {
             if (_animating) return false;
+
             if (!_history.TryPop(_board, out var score, out var randomState))
             {
                 RefreshUi();
@@ -195,5 +221,7 @@ namespace Puzzle
             if (_undoButton != null) _undoButton.interactable = CanUndo;
             if (_scoreLabel != null) _scoreLabel.text = Score.ToString("N0");
         }
+        
+        
     }
 }
