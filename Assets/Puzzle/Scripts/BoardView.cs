@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -6,24 +5,11 @@ namespace Puzzle
 {
     public class BoardView : MonoBehaviour
     {
-        [SerializeField] private int _width = 4;
-
-
-        [SerializeField] private int _height = 4;
-
-
-        [SerializeField] private int _startingTiles = 2;
-
-        [Tooltip("Chance a new tile is a 4 rather than a 2.")] [Range(0, 100)] [SerializeField]
-        private int _fourChance = 10;
-        
-        [SerializeField] private int _seed;
-        
         [SerializeField] private float _spacing = 12f;
         [SerializeField] private Color _cellColor = new Color(0.80f, 0.76f, 0.71f);
 
-
-        [SerializeField] private Color[] _tileColors =
+        [Tooltip("Indexed by rank, so element 0 is the 2 tile. Bigger values reuse the last one.")] [SerializeField]
+        private Color[] _tileColors =
         {
             new Color(0.93f, 0.89f, 0.85f), // 2
             new Color(0.93f, 0.88f, 0.78f), // 4
@@ -44,8 +30,6 @@ namespace Puzzle
         [SerializeField] private int _lightTextFrom = 8;
 
         private Board _board;
-        private TileSpawner _spawner;
-
         private RectTransform _rect;
         private RectTransform _cellRoot;
         private RectTransform _tileRoot;
@@ -56,8 +40,6 @@ namespace Puzzle
         private float _cellSize;
         private Vector2 _origin;
 
-        public Board Board => _board;
-
         private RectTransform Rect
         {
             get
@@ -65,11 +47,6 @@ namespace Puzzle
                 if (_rect == null) _rect = (RectTransform)transform;
                 return _rect;
             }
-        }
-
-        private void Awake()
-        {
-            Build();
         }
 
         private void OnRectTransformDimensionsChange()
@@ -80,11 +57,9 @@ namespace Puzzle
             ApplyLayout();
         }
 
-        [ContextMenu("Rebuild")]
-        public void Build()
+        public void Initialize(Board board)
         {
-            _board = new Board(_width, _height);
-            _spawner = new TileSpawner(NewRandom(), _fourChance);
+            _board = board;
 
             ClearChildren();
             _cellRoot = CreateLayer("Cells");
@@ -101,30 +76,13 @@ namespace Puzzle
 
             Measure();
             ApplyLayout();
-
-            _spawner.SpawnMany(_board, _startingTiles);
-            RefreshTiles();
+            Render();
         }
 
-        private System.Random NewRandom()
+        public void Render()
         {
-            return _seed == 0 ? new System.Random() : new System.Random(_seed);
-        }
+            if (_board == null) return;
 
-
-        public bool SpawnTile()
-        {
-            if (_board == null || !_spawner.TrySpawn(_board, out var index, out var value))
-            {
-                return false;
-            }
-
-            ShowTile(index, value);
-            return true;
-        }
-
-        public void RefreshTiles()
-        {
             for (var i = 0; i < _board.CellCount; i++)
             {
                 ShowTile(i, _board.CellAt(i));
