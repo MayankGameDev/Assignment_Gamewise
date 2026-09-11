@@ -22,17 +22,17 @@ namespace Puzzle
         [Tooltip("Indexed by rank, so element 0 is the 2 tile. Bigger values reuse the last one.")] [SerializeField]
         private Color[] _tileColors =
         {
-            new Color(0.93f, 0.89f, 0.85f), // 2
-            new Color(0.93f, 0.88f, 0.78f), // 4
-            new Color(0.95f, 0.69f, 0.47f), // 8
-            new Color(0.96f, 0.58f, 0.39f), // 16
-            new Color(0.96f, 0.49f, 0.37f), // 32
-            new Color(0.96f, 0.37f, 0.23f), // 64
-            new Color(0.93f, 0.81f, 0.45f), // 128
-            new Color(0.93f, 0.79f, 0.35f), // 256
-            new Color(0.93f, 0.77f, 0.25f), // 512
-            new Color(0.93f, 0.76f, 0.18f), // 1024
-            new Color(0.24f, 0.77f, 0.62f) // 2048 and up
+            new Color(0.965f, 0.906f, 0.847f), // 2    
+            new Color(0.953f, 0.784f, 0.604f), // 4    
+            new Color(0.949f, 0.573f, 0.420f), // 8    
+            new Color(0.914f, 0.416f, 0.302f), // 16  
+            new Color(0.788f, 0.310f, 0.357f), // 32   
+            new Color(0.612f, 0.275f, 0.439f), // 64  
+            new Color(0.424f, 0.282f, 0.525f), // 128  
+            new Color(0.294f, 0.306f, 0.620f), // 256  
+            new Color(0.196f, 0.400f, 0.690f), // 512  
+            new Color(0.122f, 0.541f, 0.549f), // 1024 
+            new Color(0.949f, 0.718f, 0.020f)  // 2048
         };
 
         [SerializeField] private Color _darkText = new Color(0.36f, 0.33f, 0.30f);
@@ -106,9 +106,53 @@ namespace Puzzle
             _animRoutine = StartCoroutine(AnimateMovesRoutine(moves, onComplete));
         }
 
-        private IEnumerator AnimateMovesRoutine(List<TileMove> moves, Action onComplete)
+        public void AnimateShuffle(Action onComplete)
+        {
+            if (_animRoutine != null) StopCoroutine(_animRoutine);
+            _animRoutine = StartCoroutine(AnimateShuffleRoutine(onComplete));
+        }
+
+        private IEnumerator AnimateShuffleRoutine(Action onComplete)
         {
             
+            for (var i = 0; i < _tiles.Length; i++)
+            {
+                var tile = _tiles[i];
+                if (tile == null) continue;
+                if (_board.CellAt(i) == Board.Wall) continue; 
+
+                _tiles[i] = null;
+                StartCoroutine(ScaleOutAndDestroy(tile, _popDuration));
+            }
+
+            yield return new WaitForSeconds(_popDuration);
+
+            for (var i = 0; i < _board.CellCount; i++)
+            {
+                if (_board.CellAt(i) > 0) ShowNewTile(i);
+            }
+
+            _animRoutine = null;
+            onComplete?.Invoke();
+        }
+
+        private static IEnumerator ScaleOutAndDestroy(TileView tile, float duration)
+        {
+            var rect = tile.Rect;
+            var t = 0f;
+
+            while (t < duration)
+            {
+                t += Time.deltaTime;
+                rect.localScale = Vector3.one * (1f - Mathf.Clamp01(t / duration));
+                yield return null;
+            }
+
+            DestroyObject(tile.gameObject);
+        }
+
+        private IEnumerator AnimateMovesRoutine(List<TileMove> moves, Action onComplete)
+        {
             var newTiles = new TileView[_board.CellCount];
             Array.Copy(_tiles, newTiles, _tiles.Length);
 

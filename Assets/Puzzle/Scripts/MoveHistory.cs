@@ -51,7 +51,7 @@ namespace Puzzle
 
             if (snapshot.Cells.Length != board.CellCount)
             {
-                // Board was resized under us - the history is meaningless now.
+                
                 Clear();
                 return false;
             }

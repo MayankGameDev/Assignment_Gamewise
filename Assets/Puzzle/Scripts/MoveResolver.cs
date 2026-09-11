@@ -51,7 +51,9 @@ namespace Puzzle
                 _moveTarget[p] = -1;
                 _merged[p] = false;
             }
-            
+
+            // Walls split a line into independent segments; each segment
+            // collapses on its own, exactly like a smaller line would.
             var segStart = 0;
             while (segStart < length)
             {
@@ -179,7 +181,7 @@ namespace Puzzle
                 for (var x = 0; x < board.Width; x++)
                 {
                     var value = board[x, y];
-                    if (value <= 0) continue; // empty or wall - can't be the mover in a merge
+                    if (value <= 0) continue; 
 
                     if (x + 1 < board.Width && board[x + 1, y] == value) return true;
                     if (y + 1 < board.Height && board[x, y + 1] == value) return true;

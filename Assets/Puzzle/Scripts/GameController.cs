@@ -12,6 +12,7 @@ namespace Puzzle
         [SerializeField] private GameOverPanel _gameOverPanel;
         [SerializeField] private TextMeshProUGUI _scoreLabel;
         [SerializeField] private Button _undoButton;
+        [SerializeField] private Button _shuffleButton;
 
         [SerializeField] private int _width = 4;
         [SerializeField] private int _height = 4;
@@ -22,12 +23,12 @@ namespace Puzzle
         private int _fourChance = 10;
 
         [SerializeField] private int _seed;
-        
-        [Tooltip("Reach this tile to win.")]
-        [SerializeField] private int _winValue = 2048;
 
-        [Tooltip("Number of blocked cells placed on the board at the start of each game.")]
-        [SerializeField] private int _wallCount = 2;
+        [Tooltip("Reach this tile to win.")] [SerializeField]
+        private int _winValue = 2048;
+
+        [Tooltip("Number of blocked cells placed on the board at the start of each game.")] [SerializeField]
+        private int _wallCount = 2;
 
         private Board _board;
         private TileSpawner _spawner;
@@ -59,6 +60,7 @@ namespace Puzzle
         {
             if (_input != null) _input.Swiped += OnSwiped;
             if (_undoButton != null) _undoButton.onClick.AddListener(OnUndoClicked);
+            if (_shuffleButton != null) _shuffleButton.onClick.AddListener(OnShuffleClicked);
             if (_gameOverPanel != null)
             {
                 _gameOverPanel.NewGamePressed += NewGame;
@@ -70,6 +72,7 @@ namespace Puzzle
         {
             if (_input != null) _input.Swiped -= OnSwiped;
             if (_undoButton != null) _undoButton.onClick.RemoveListener(OnUndoClicked);
+            if (_shuffleButton != null) _shuffleButton.onClick.RemoveListener(OnShuffleClicked);
         }
 
         private void Start()
@@ -85,10 +88,11 @@ namespace Puzzle
             PlaceWalls();
             _spawner.SpawnMany(_board, _startingTiles);
             _boardView.Render();
-            RefreshUndoButton();
             Score = 0;
             State = GameState.Playing;
             _targetReached = false;
+            _animating = false;
+            RefreshUi();
             if (_gameOverPanel != null) _gameOverPanel.Hide();
         }
 
@@ -107,7 +111,7 @@ namespace Puzzle
                 var index = Random.Range(0, _board.CellCount);
                 _board.CoordAt(index, out var x, out var y);
 
-                if (!_board.IsEmpty(x, y)) continue; 
+                if (!_board.IsEmpty(x, y)) continue;
 
                 _board[x, y] = Board.Wall;
                 placed++;
@@ -134,12 +138,17 @@ namespace Puzzle
                 _spawner.TrySpawn(_board, out var spawnIndex, out _);
                 _boardView.ShowNewTile(spawnIndex);
 
-                RefreshUi();
-                CheckEndOfGame();
+                // IMPORTANT: flip _animating back BEFORE calling anything
+                // that reads it (CheckEndOfGame / RefreshUi), otherwise
+                // RefreshUi sees the stale "still animating" value and
+                // leaves the Shuffle button disabled until something else
+                // (like Undo) happens to call RefreshUi later.
                 _animating = false;
+                CheckEndOfGame();
+                RefreshUi();
             });
         }
-        
+
         private void CheckEndOfGame()
         {
             if (!_targetReached && _board.HighestValue() >= _winValue)
@@ -158,7 +167,7 @@ namespace Puzzle
                 return;
             }
 
-            if (MoveResolver.HasAnyMove(_board)) return; 
+            if (MoveResolver.HasAnyMove(_board)) return;
             Debug.Log("Game Lost before 2048");
             State = GameState.Lost;
 
@@ -170,7 +179,7 @@ namespace Puzzle
                     CanUndo ? "Undo last move" : null);
             }
         }
-        
+
         private void OnSecondaryPressed()
         {
             if (State == GameState.Won)
@@ -211,17 +220,68 @@ namespace Puzzle
             Undo();
         }
 
-        private void RefreshUndoButton()
+        private bool CanShuffle()
         {
-            if (_undoButton != null) _undoButton.interactable = CanUndo;
+            var movable = 0;
+            for (var i = 0; i < _board.CellCount; i++)
+            {
+                if (_board.CellAt(i) != Board.Wall) movable++;
+            }
+
+            return movable >= 2;
+        }
+
+        private void OnShuffleClicked()
+        {
+            if (_animating) return;
+            if (State != GameState.Playing) return;
+            if (!CanShuffle()) return;
+
+            _history.Push(_board, Score, Random.state);
+            _animating = true;
+
+            ShuffleBoardValues();
+
+            _boardView.AnimateShuffle(() =>
+            {
+                // Same fix as OnSwiped: reset the flag before anything
+                // that reads it.
+                _animating = false;
+                CheckEndOfGame();
+                RefreshUi();
+            });
+        }
+
+        private void ShuffleBoardValues()
+        {
+            var indices = new List<int>();
+            for (var i = 0; i < _board.CellCount; i++)
+            {
+                if (_board.CellAt(i) != Board.Wall) indices.Add(i);
+            }
+
+            var values = new List<int>(indices.Count);
+            foreach (var index in indices) values.Add(_board.CellAt(index));
+
+            for (var i = values.Count - 1; i > 0; i--)
+            {
+                var j = Random.Range(0, i + 1);
+                var temp = values[i];
+                values[i] = values[j];
+                values[j] = temp;
+            }
+
+            for (var k = 0; k < indices.Count; k++)
+            {
+                _board.SetAt(indices[k], values[k]);
+            }
         }
 
         private void RefreshUi()
         {
             if (_undoButton != null) _undoButton.interactable = CanUndo;
+            if (_shuffleButton != null) _shuffleButton.interactable = !_animating && State == GameState.Playing && CanShuffle();
             if (_scoreLabel != null) _scoreLabel.text = Score.ToString("N0");
         }
-        
-        
     }
 }

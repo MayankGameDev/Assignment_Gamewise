@@ -52,8 +52,8 @@ namespace Puzzle
 
             return view;
         }
-        
-        
+
+       
         public static TileView CreateWall(Transform parent, string name, Color color)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
