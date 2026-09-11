@@ -65,5 +65,10 @@ namespace Puzzle
             _rect.sizeDelta = size;
             _rect.anchoredPosition = anchoredPosition;
         }
+        
+        public void SetSize(Vector2 size)
+        {
+            _rect.sizeDelta = size;
+        }
     }
 }
